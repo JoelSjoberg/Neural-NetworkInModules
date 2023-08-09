@@ -1,7 +1,7 @@
 try:
-    import cupy as np
+    import cupy as cp
 except:
-    import numpy as np
+    import numpy as cp
 
 
 from Scripts.activations import *
@@ -31,7 +31,7 @@ class scaling:
     def __init__(self, size = 3, W = None, const = 10):
         
         if W is None:
-            self.W = np.random.random_sample((size, 1)) * (10 - 5) * const
+            self.W = cp.random.random_sample((size, 1)) * (10 - 5) * const
         else:
             self.W = W
         
@@ -42,14 +42,14 @@ class scaling:
     def get_params(self):
         return self.W 
     
-    def feed_forward(self, inp, train = True):
+    def feed_forward(self, icp, train = True):
         
-        self.signal = inp.reshape(inp.size, 1)
+        self.signal = icp.reshape(icp.size, 1)
         
         if train:
             self.derivative = self.W.reshape(self.W.size, 1)
         
-        return np.squeeze(np.multiply(self.signal, self.W))
+        return cp.squeeze(cp.multiply(self.signal, self.W))
 
     def compute_gradient(self, err):
         
@@ -61,7 +61,7 @@ class scaling:
         # Gradient is used to update alpha value
         gradient = error * derivative.reshape(derivative.size, 1)
 
-        # Gradient w.r.t Input
+        # Gradient w.r.t Icput
         error = error * self.derivative.reshape(self.derivative.size, 1)
         
         self.gradients.append(gradient)
@@ -87,18 +87,18 @@ class dropout:
     def get_params(self):
         return self.W   
     
-    def feed_forward(self, inp, train = True):
+    def feed_forward(self, icp, train = True):
         
-        self.signal = inp
+        self.signal = icp
         
         if train == False:
             return self.signal
     
-        self.mask = np.random.random_sample(inp.shape)
+        self.mask = cp.random.random_sample(icp.shape)
         
-        self.mask = np.where(self.mask > self.rate, 1, 0)
+        self.mask = cp.where(self.mask > self.rate, 1, 0)
         
-        return np.multiply(inp, self.mask)
+        return cp.multiply(icp, self.mask)
     
     def compute_gradient(self, err):
         
@@ -111,16 +111,16 @@ class leaky_relu:
     def __init__(self, size, a = None):
         
         if a == None:
-            self.W = np.random.random_sample((size, 1))
+            self.W = cp.random.random_sample((size, 1))
         else:
-            self.W = np.ones(size) * a
+            self.W = cp.ones(size) * a
             
         def leaky_relu(x):
-            ind = np.argwhere(x < 0)
+            ind = cp.argwhere(x < 0)
             x[ind] = self.W.reshape(x.shape)[ind] * x[ind]
             signal = x
             
-            return np.array(signal)
+            return cp.array(signal)
         
         self.gradients = []
         self.signal = None
@@ -130,14 +130,14 @@ class leaky_relu:
     def get_params(self):
         return self.W
     
-    def feed_forward(self, inp, train = True):
+    def feed_forward(self, icp, train = True):
         
-        self.signal = np.array(inp)
+        self.signal = cp.array(icp)
         if train:
             self.derivative = get_derivative(self.activation, self.signal)
-            self.derivative = np.array(self.derivative).T
+            self.derivative = cp.array(self.derivative).T
         
-        return self.activation(inp)
+        return self.activation(icp)
     
     
     def compute_gradient(self, err):
@@ -145,7 +145,7 @@ class leaky_relu:
         error = err.reshape(err.size, 1)
         
         # Derivative w.r.t. W
-        derivative = np.where(self.signal > 0, 0, self.signal)
+        derivative = cp.where(self.signal > 0, 0, self.signal)
         
         # Gradient is used to update alpha value
         gradient = error * derivative.reshape(derivative.size, 1)
@@ -170,8 +170,8 @@ class static_normalization_layer:
         
         self.W = W
         def activation(x):
-            maxim = np.max(np.abs(x))
-            minim = np.min(x)
+            maxim = cp.max(cp.abs(x))
+            minim = cp.min(x)
             return (x - minim)/(maxim - minim)
         
         self.gradients = []
@@ -182,15 +182,15 @@ class static_normalization_layer:
     def get_params(self):
         return self.W
     
-    def feed_forward(self, inp, train = True):
+    def feed_forward(self, icp, train = True):
     
-        self.signal = np.array(inp)
+        self.signal = cp.array(icp)
         
         if train:
             self.derivative = get_derivative(self.activation, self.signal)
-            self.derivative = np.array(self.derivative).T
+            self.derivative = cp.array(self.derivative).T
         
-        return self.activation(inp)
+        return self.activation(icp)
     
     
     def compute_gradient(self, err):
@@ -198,11 +198,11 @@ class static_normalization_layer:
         error = err.reshape(err.size, 1)
         
         # Derivative w.r.t. W
-        derivative = np.ones(err.size) * self.signal
+        derivative = cp.ones(err.size) * self.signal
         
         # Gradient is used to update alpha value
         gradient = error * derivative.reshape(derivative.size, 1)
-        gradient = np.mean(gradient)
+        gradient = cp.mean(gradient)
 
         # Error is used to update layers after this
         error = error * self.derivative.reshape(self.derivative.size, 1)
@@ -218,7 +218,7 @@ class adaptive_normalization_layer:
     def __init__(self, W= None, learnable = True):
         
         if W== None:
-            self.W = np.random.random_sample() * 0.01
+            self.W = cp.random.random_sample() * 0.01
         else:
             self.W = W
         
@@ -233,15 +233,15 @@ class adaptive_normalization_layer:
     def get_params(self):
         return self.W
     
-    def feed_forward(self, inp, train = True):
+    def feed_forward(self, icp, train = True):
         
-        self.signal = np.array(inp)
+        self.signal = cp.array(icp)
         
         if train:
             self.derivative = get_derivative(self.activation, self.signal)
-            self.derivative = np.array(self.derivative).T
+            self.derivative = cp.array(self.derivative).T
         
-        return self.activation(inp)
+        return self.activation(icp)
     
     
     def compute_gradient(self, err):
@@ -249,11 +249,11 @@ class adaptive_normalization_layer:
         error = err.reshape(err.size, 1)
         
         # Derivative w.r.t. W
-        derivative = np.ones(err.size) * self.signal
+        derivative = cp.ones(err.size) * self.signal
         
         # Gradient is used to update alpha value
         gradient = error * derivative.reshape(derivative.size, 1)
-        gradient = np.mean(gradient)
+        gradient = cp.mean(gradient)
 
         # Error is used to update layers after this
         error = error * self.derivative.reshape(self.derivative.size, 1)
@@ -276,7 +276,7 @@ class zscore_layer:
         if learnable == False:
             self.W = [0, 1]
             def activation(x):
-                return (x - np.mean(x))/ np.std(x)
+                return (x - cp.mean(x))/ cp.std(x)
             
         elif W is not None:
             self.W = W
@@ -284,7 +284,7 @@ class zscore_layer:
                 return (x - self.W[0])/ self.W[1]
         
         else:
-            self.W = np.random.sample(2)
+            self.W = cp.random.sample(2)
             def activation(x):
                 return (x - self.W[0])/ self.W[1]
         
@@ -296,16 +296,16 @@ class zscore_layer:
     def get_params(self):
         return self.W
     
-    def feed_forward(self, inp, train = True):
+    def feed_forward(self, icp, train = True):
         
-        self.signal = np.array(inp)
+        self.signal = cp.array(icp)
         
         if train:
             # Derivative must be taken with respect to each element in vector x separately
             # compute derivative manually here
             # Derivative of mean w.r.t any given x_i is always 1/len(x)
-            mean = np.mean(self.signal)
-            std = np.std(self.signal)
+            mean = cp.mean(self.signal)
+            std = cp.std(self.signal)
             n = len(self.signal)
 
             std_der = (1/(2 * std)) * (2/n) * (self.signal - mean) * (1 - (1/n))
@@ -313,7 +313,7 @@ class zscore_layer:
 
             self.derivative = derivative
         
-        return self.activation(inp)
+        return self.activation(icp)
     
     
     def compute_gradient(self, err):
@@ -324,9 +324,9 @@ class zscore_layer:
         
         der_mean = -1/self.W[1]
         
-        der_std = (1/(self.W[1]**2)) * np.mean((self.signal - self.W[0]))
+        der_std = (1/(self.W[1]**2)) * cp.mean((self.signal - self.W[0]))
         
-        self.gradients.append(np.array([der_mean, der_std]))
+        self.gradients.append(cp.array([der_mean, der_std]))
         
         # Derivative w.r.t. x
         error = error * self.derivative.reshape(self.derivative.size, 1)
@@ -349,7 +349,7 @@ class fullyConnected:
                 size = (layer_size[0], layer_size[1]+1)
             else:
                 size = (layer_size[0], layer_size[1])
-            self.W = np.random.normal(loc = 0, scale = 2/(size[0] + size[1]), size = size)
+            self.W = cp.random.normal(loc = 0, scale = 2/(size[0] + size[1]), size = size)
         else:
             self.W = W
         
@@ -363,19 +363,19 @@ class fullyConnected:
     def get_params(self):
         return self.W
     
-    def feed_forward(self, inp, train = True):
+    def feed_forward(self, icp, train = True):
         
         # Append bias
         if self.bias:
-            inp = np.append(inp, 1)
+            icp = cp.append(icp, 1)
         
-        self.signal = inp
+        self.signal = icp
         
         if train:
-            self.derivative = get_derivative(self.activation, self.W.dot(inp))
-            self.derivative = np.array(self.derivative).T
+            self.derivative = get_derivative(self.activation, self.W.dot(icp))
+            self.derivative = cp.array(self.derivative).T
         
-        return self.activation(self.W.dot(inp))
+        return self.activation(self.W.dot(icp))
     
     
     def compute_gradient(self, err):
@@ -409,7 +409,7 @@ class fullyConnected:
                 self.W -= alpha * gradient.astype("float64") * 1/len(self.gradients)
 
             if self.standardize:
-                self.W = (self.W - np.mean(self.W))/np.std(self.W)
+                self.W = (self.W - cp.mean(self.W))/cp.std(self.W)
 
         # Remember to reset gradient after update
         self.gradients = []
@@ -426,16 +426,16 @@ class sporadic_activations:
         if activations == None:
             self.activations = []
             for i in range(size):
-                self.activations.append(activation_functions[np.random.randint(len(activation_functions))])
+                self.activations.append(activation_functions[cp.random.randint(len(activation_functions))])
         else:
             self.activations = activations
 
     def get_params(self):
         return self.W
     
-    def feed_forward(self, inp, train = True):
+    def feed_forward(self, icp, train = True):
         
-        self.signal = inp
+        self.signal = icp
         
         out_signals = []
         out_derivatives = []
@@ -444,9 +444,9 @@ class sporadic_activations:
             out_derivatives.append(get_derivative(self.activations[i], self.signal[i]))
             
         if train:
-            self.derivative = np.array(out_derivatives)
+            self.derivative = cp.array(out_derivatives)
         
-        return np.array(out_signals)
+        return cp.array(out_signals)
     
     
     def compute_gradient(self, err):
@@ -464,19 +464,23 @@ class sporadic_activations:
 
 
 class partiallyConnected:
-    def __init__(self, size, activation = identity, W = None, standardize = False, rate = 0.4, trainable = True):
+    def __init__(self, size, activation = identity, W = None, standardize = False, rate = 0.4, trainable = True, bias = True):
         
         if W == None:
-            size = (size[0], size[1]+1)
-            self.W = np.random.normal(loc = 0, scale = 2/(size[0] + size[1]+1), size = size)
+            if bias:
+                size = (size[0], size[1]+1)
+            else:
+                size = (size[0], size[1])
+                
+            self.W = cp.random.normal(loc = 0, scale = 2/(size[0] + size[1]+1), size = size)
         else:
             self.W = W
         
         
-        mask = np.random.random_sample(self.W.shape)
-        mask = np.where(mask > rate, 1, 0)
+        mask = cp.random.random_sample(self.W.shape)
+        mask = cp.where(mask > rate, 1, 0)
         self.mask = mask
-        self.W = np.multiply(self.W, self.mask)
+        self.W = cp.multiply(self.W, self.mask)
         
         self.activation = activation
         
@@ -488,18 +492,18 @@ class partiallyConnected:
     def get_params(self):
         return self.W
     
-    def feed_forward(self, inp, train = True):
+    def feed_forward(self, icp, train = True):
         
         # Append bias
-        icp = np.append(inp, 1)
+        icp = cp.append(icp, 1)
         
-        self.signal = inp
+        self.signal = icp
         
         if train:
-            self.derivative = get_derivative(self.activation, self.W.dot(inp))
-            self.derivative = np.array(self.derivative).T
+            self.derivative = get_derivative(self.activation, self.W.dot(icp))
+            self.derivative = cp.array(self.derivative).T
         
-        return self.activation(self.W.dot(inp))
+        return self.activation(self.W.dot(icp))
     
     
     def compute_gradient(self, err):
@@ -532,8 +536,8 @@ class partiallyConnected:
                 self.W -= alpha * gradient.astype("float64") * 1/len(self.gradients)
         
         if self.standardize:
-            self.W = (self.W - np.mean(self.W[self.W != 0]))/np.std(self.W[self.W != 0])
+            self.W = (self.W - cp.mean(self.W[self.W != 0]))/cp.std(self.W[self.W != 0])
             
-        self.W = np.multiply(self.W, self.mask)
+        self.W = cp.multiply(self.W, self.mask)
         # Remember to reset gradient after update
         self.gradients = []
