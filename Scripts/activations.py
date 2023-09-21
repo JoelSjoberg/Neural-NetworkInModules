@@ -1,8 +1,5 @@
 
-try:
-    import cupy as cp
-except:
-    import numpy as cp
+import numpy as cp
 
 def identity(x):
     return x
@@ -41,10 +38,10 @@ def tanh(x):
     return cp.tanh(x)
 
 def sigmoid(x):
-    return 1/(1+cp.exp(-x))
+    return 1/(1+cp.exp(-x) + 1e-7)
 
 def cont_sigmoid(x):
-    return sigmoid(x)*x+x
+    return sigmoid(x)*x+(x*0.1)
 
 def exp_div(x):
     return 1/cp.exp(x)
@@ -76,22 +73,16 @@ def relu_sig(x):
 def relu_tanh(x):
     return tanh(x) * l_relu(x)
 
-def radial_basis_function(x, sig = 0.3, y_t = 0):
-    return cp.exp(-cp.power((cp.abs(x - y_t) * sig), 2))
+def radial_basis_function(x, sig = 0.01, y_t = 0):
+    return cp.exp(-cp.power(cp.abs(x - y_t), 2) * sig)
 
 # Experimental: Yield the approximation of the derivative of function f at point x
-def get_derivative(f, x, offset = 0.0001):
+def get_derivative(f, x, offset = 1e-5):
     
-    # Define points between which derivative is approximated
-    vec1 = cp.array([x - offset, f(x - offset)])
-    vec2 = cp.array([x + offset, f(x + offset)])
-    
-    # Get the vector between the two points
-    sub = vec2 - vec1
-    
-    # Return the slope (rise over run echoes in your head)
-    return sub[1]/(sub[0] + (offset * 0.001))
+    # Get change between the surrounding space
+    der = (f(x + offset) - f(x - offset))/(2*offset)
 
+    return der
 
 
 

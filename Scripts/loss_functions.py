@@ -1,7 +1,5 @@
-try:
-    import cupy as cp
-except:
-    import numpy as cp
+
+import numpy as cp
 
 from Scripts.activations import get_derivative
 import matplotlib.pyplot as plt
@@ -14,14 +12,14 @@ class Loss:
 class MSE:
     def __init__(self):
         self.y_t = None
-        self.batch_y_t = None
+        self.reg_term = 0
     
     def set_yt(self, y_t):
         self.y_t = y_t
     
     def J(self, y_p):
-
-        error = cp.square(self.y_t - y_p) * 1/2
+        
+        error = cp.power(y_p - self.y_t, 2) * 1/2 + self.reg_term
         return cp.nan_to_num(error)
         
     def compute(self, y_p, y_t):
@@ -30,7 +28,55 @@ class MSE:
         return self.J(y_p)
     
     def derivative(self, x):
-        x = x.ravel()
+        return get_derivative(self.J, x)
+            
+    def set_latent_points(self, points):
+        pass
+
+class Cluster_loss:
+    def __init__(self, out_dim):
+        self.y_t = None
+        self.reg_term = 0
+        self.out_dim = out_dim
+        self.centroids = None
+        self.prev_centroids = None
+    
+    def set_yt(self, y_t):
+        self.y_t = cp.array(y_t)
+    
+    def J(self, y_p):
+        
+        unique = cp.unique(self.y_t)
+        
+        self.centroids = []
+        error = cp.zeros_like(y_p)
+
+        for i in unique:
+            indices = (self.y_t == i).flatten()
+            class_examples = cp.array(y_p)[indices]
+            
+            # Centroid of the cluster
+            centroid = cp.mean(class_examples, axis = 0)
+
+            # Compute distance of every datapoint to the centroid
+            e = cp.power(class_examples - centroid, 2) * 1/2 + self.reg_term
+            error[indices] = e
+
+            # Update centroid for data class
+            self.centroids.append(centroid)
+        
+        self.prev_centroids = cp.array(self.centroids)
+
+        self.centroids = cp.array(self.centroids)
+
+        return cp.nan_to_num(error)
+        
+    def compute(self, y_p, y_t):
+        self.y_t = y_t
+            
+        return self.J(y_p)
+    
+    def derivative(self, x):
         return get_derivative(self.J, x)
             
     def set_latent_points(self, points):
