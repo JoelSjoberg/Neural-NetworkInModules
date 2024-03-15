@@ -9,7 +9,7 @@ class Layer:
     def feed_forward(self, inp, train = True):
         pass
 
-    def compute_gradient(self, err, lambd = 0):
+    def compute_gradient(self, err, regularization = False, lambd = 0):
         return err
     
     def update(self, alpha):
@@ -18,7 +18,7 @@ class Layer:
     def get_params(self):
         return []
 
-class Dense:
+class Dense(Layer):
 
     def __init__(self, layer_size, activation = identity,
                   W = None, standardize = False,
@@ -29,7 +29,7 @@ class Dense:
                 size = (layer_size[0] + 1, layer_size[1])
             else:
                 size = (layer_size[0], layer_size[1])
-            self.W = np.random.normal(loc = 0, scale = 2/(size[0] + size[1]), size = size)
+            self.W = np.random.normal(loc = 0, scale = 2/(size[0] + size[1]), size = size).astype(np.double)
 
         else:
             self.W = W
@@ -56,9 +56,11 @@ class Dense:
             bias = np.expand_dims(np.ones(inp.shape[axis]), -1)
             inp = np.append(inp, bias, axis = 1)
 
-        self.signal = inp
-        dot = np.dot(inp, self.W)
 
+        self.signal = inp
+
+        # Multiply input with relative parameters, then sum them up
+        dot = np.dot(self.signal, self.W)
 
         if train:
             # Derivative of element-wise activation
@@ -67,7 +69,7 @@ class Dense:
         # Element-wise activations
         return self.activation(dot)
     
-    def compute_gradient(self, err, lambd):
+    def compute_gradient(self, err, regularization = False, lambd = 1):
 
         # w.r.t. x      
         err = np.multiply(err, self.derivative)
@@ -79,25 +81,86 @@ class Dense:
 
         # w.r.t W, how should W be changed?
         gradient = err.T.dot(self.signal).T
-        self.gradients = gradient
+        self.gradients.append(gradient)
 
-        self.gradients += self.W * lambd
+        # If regularization is active
+        if regularization:
+            self.gradients[-1] += self.W * lambd
         
         return (error)
+
         
     def update(self, alpha):
-
-        prev_v = self.velocity
         
-        self.velocity = self.mu * self.velocity - alpha * self.gradients.astype("float64")
         
-        self.W += -self.mu * prev_v + (1 + self.mu) * self.velocity
-
         if self.trainable:
-            self.W -= alpha * self.gradients.astype("float64")
+            prev_v = np.copy(self.velocity)
+
+            grads = np.sum(self.gradients, axis=0)/len(self.gradients)
+            self.velocity = self.mu * self.velocity - alpha * grads
+            
+            self.W += -self.mu * prev_v + (1 + self.mu) * self.velocity
+
+            #print(grads)
+            #self.W -= alpha * grads
 
         # Remember to reset gradient after update
         self.gradients = []
+
+    def __str__(self):
+        return "Dense Layer"
+
+class FeatureImportance(Layer):
+
+    def __init__(self, size, trainable = True):
+
+        self.W = np.random.random_sample((1, size))
+        self.gradients = []
+        self.trainable = trainable
+        self.velocity = np.zeros_like(self.W)
+        self.mu = 0.9
+
+    def feed_forward(self, inp, train=True):
+        
+        self.signal = inp
+
+        mult = self.signal * self.W
+
+        if train:
+            # Derivative of element-wise activation
+            self.derivative = np.ones_like(mult)
+
+        return mult
+    
+    def compute_gradient(self, err, regularization=False, lambd=0):
+        # w.r.t. x      
+        err = np.multiply(err, self.derivative)
+        error = err.dot(self.W.T)
+
+        # w.r.t W, how should W be changed?
+        gradient = err.T.dot(self.signal).T
+        self.gradients.append(gradient)
+
+        # If regularization is active
+        if regularization:
+            self.gradients[-1] += self.W * lambd
+        
+        return (error)
+
+    def update(self, alpha):
+        
+        if self.trainable:
+            prev_v = np.copy(self.velocity)
+            grads = np.sum(self.gradients, axis=1)/len(self.gradients)
+            self.velocity = self.mu * self.velocity - alpha * grads
+            self.W += -self.mu * prev_v + (1 + self.mu) * self.velocity
+            self.W = np.clip(self.W, 0, 1)
+
+        # Remember to reset gradient after update
+        self.gradients = []
+
+    def __str__(self):
+        return "Feature Importance Layer"
 
 class Graph_Layer:
 
@@ -163,6 +226,11 @@ class Graph_Layer:
 
 class Noise(Layer):
 
+    def __init__(self, mean, std):
+        self.mean = mean
+        self.std = std
+        self.W = []
+
     def get_params(self):
         return []  
     
@@ -171,7 +239,7 @@ class Noise(Layer):
         self.signal = inp
         
         if train:
-            self.signal = inp + np.random.normal(np.mean(inp), scale = np.std(inp) * 0.1, size = inp.shape)
+            self.signal = inp + np.random.normal(self.mean, scale = self.std, size = inp.shape)
         
         return self.signal
     
@@ -191,18 +259,19 @@ class Dropout(Layer):
         
         self.signal = inp
         
+        norm = np.linalg.norm(self.signal, axis = 0)
         if train == False:
             return self.signal
     
-        norms = np.linalg.norm(inp, axis = 0)
         self.mask = cp.random.random_sample(inp.shape)
         
         self.mask = cp.where(self.mask > self.rate, 1, 0)
-        
-        out = cp.multiply(inp, self.mask)
 
-        out = out/ (np.linalg.norm(out, axis = 0) + eps)
-        out *= norms
+        out = cp.multiply(inp, self.mask)
+        drop_norm = np.linalg.norm(out, axis = 0)
+
+        out = (out/(drop_norm + eps)) * norm 
+
         return out
 
 class BatchNormalization:

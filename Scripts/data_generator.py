@@ -5,9 +5,13 @@ def get_mnist():
     data = datasets.load_digits()
     X = data.images
     y = data.target
-    print(y[100])
     X = X.reshape(len(X), -1)/255
     y = np.expand_dims(y, -1)
+
+    idx = np.arange(len(X))
+    np.random.shuffle(idx)
+    X = X[idx]
+    y = y[idx]
 
     return X, y
 # Generate densly connected data

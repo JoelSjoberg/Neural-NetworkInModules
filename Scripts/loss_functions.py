@@ -19,20 +19,47 @@ class MSE:
     
     def J(self, y_p):
         
-        error = cp.power(y_p - self.y_t, 2) * 1/2 + self.reg_term
+        error = cp.power(self.y_t - y_p, 2) * 1/2 + self.reg_term
         return cp.nan_to_num(error)
         
-    def compute(self, y_p, y_t):
+    def compute(self, y_t, y_p):
         self.y_t = y_t
-            
+        
         return self.J(y_p)
     
     def derivative(self, x):
         return get_derivative(self.J, x)
+
+        #return (self.y_t - x) * x
             
     def set_latent_points(self, points):
         pass
 
+class RMSE:
+    def __init__(self):
+        self.y_t = None
+        self.reg_term = 0
+    
+    def set_yt(self, y_t):
+        self.y_t = y_t
+    
+    def J(self, y_p):
+        
+        error = cp.sqrt(cp.power(self.y_t - y_p, 2) * 1/2) + self.reg_term
+        return cp.nan_to_num(error)
+        
+    def compute(self, y_t, y_p):
+        self.y_t = y_t
+        
+        return self.J(y_p)
+    
+    def derivative(self, x):
+        return get_derivative(self.J, x)
+
+        #return (self.y_t - x) * x
+            
+    def set_latent_points(self, points):
+        pass
 class Cluster_loss:
     def __init__(self, out_dim):
         self.y_t = None

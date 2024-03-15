@@ -1,8 +1,8 @@
 import numpy as np
 
-a = np.random.random_sample((100, 10))
 
-b = np.random.random_sample((30, 10))
+a = np.random.random_sample((1, 100))
+b = np.ones((128, 100))
 
-np.subtract(a.T, b.T)
-
+print((b*a).shape)
+print((b*a))

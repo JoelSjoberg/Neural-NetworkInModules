@@ -5,7 +5,6 @@ def identity(x):
     return x
 
 def relu(x):
-    
     # One line return statement is dope!
     return cp.where(x > 0, x, 0)
 
@@ -77,7 +76,7 @@ def radial_basis_function(x, sig = 0.01, y_t = 0):
     return cp.exp(-cp.power(cp.abs(x - y_t), 2) * sig)
 
 # Experimental: Yield the approximation of the derivative of function f at point x
-def get_derivative(f, x, offset = 1e-5):
+def get_derivative(f, x, offset = 1e-8):
     
     # Get change between the surrounding space
     der = (f(x + offset) - f(x - offset))/(2*offset)
